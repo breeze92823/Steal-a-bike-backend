@@ -3,8 +3,12 @@
 export const GAME_SLUG = "steal-a-bike";
 
 // Keep in step with the client's src/config.js (NET) by hand.
-// Players per room; full rooms spill into a new one (party play needs 2-100).
-export const ROOM_MAX_CLIENTS = 50;
+// A room is the hub with its PLOT_COUNT bases (client LAYOUT.plotCenters): one base per player,
+// so a room holds that many players and the next one gets a new room (party play needs 2-100).
+export const PLOT_COUNT = 7;
+export const ROOM_MAX_CLIENTS = 7;
+// A base's floors (client BASE.floors): the ground plus up to two decks.
+export const BASE_FLOORS_MAX = 3;
 
 // Longest accepted strings.
 export const NAME_MAX = 64;
@@ -30,7 +34,7 @@ export const TREADMILL_LEVEL_MAX = 200;
 export const PLAY_SECONDS_MAX = 31_536_000; // ~1 year
 // Bikes you own (sellshop.js), placed in the base (base.js), the Bike Index and trails.
 export const BIKES_MAX = 2000;
-export const PLACED_MAX = 64;
+export const PLACED_MAX = 64; // >= the client's BASE.floors slots, all floors
 export const FOUND_MAX = 512;
 export const OWNED_TRAILS_MAX = 64;
 export const FUSE_MAX = 64;

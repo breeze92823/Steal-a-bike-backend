@@ -19,6 +19,7 @@ export interface PlayerDoc {
   treadmill?: number; // treadmill level
   bikes?: string[]; // bikes owned and unsold, one name per bike (duplicates allowed)
   placed?: string[]; // bikes parked in the base, in slot order
+  floors?: number; // base floors built (1..BASE_FLOORS_MAX)
   found?: string[]; // Bike Index: discovered bikes
   claimed?: string[]; // Bike Index: discovery rewards taken
   trails?: string[]; // owned trail ids

@@ -20,6 +20,32 @@ describe("roster and presence", () => {
     assert.strictEqual(room.state.players.get(b.sessionId)!.pfp, "", "only http(s) pictures are relayed");
   });
 
+  it("gives every player their own plot, reuses a freed one and relays each base", async () => {
+    const room = await colyseus.createRoom<WorldState>("world", {});
+    const a = await colyseus.connectTo(room, { userId: "guest-a", username: "Ann", base: { floors: 2, placed: ["BMX", "Club Tourer"], treadmill: 3 } });
+    const b = await colyseus.connectTo(room, { userId: "guest-b", username: "Bo" });
+    await sleep(50);
+    const pa = room.state.players.get(a.sessionId)!;
+    const pb = room.state.players.get(b.sessionId)!;
+    assert.strictEqual(pa.plot, 0);
+    assert.strictEqual(pb.plot, 1);
+    assert.strictEqual(pa.floors, 2, "the join options carry the base");
+    assert.strictEqual(pa.placed, "BMX|Club Tourer");
+    assert.strictEqual(pa.treadmill, 3);
+
+    b.send("base", { floors: 9, placed: ["Vispo", "<x>", 5], treadmill: 0 });
+    await sleep(50);
+    assert.strictEqual(pb.floors, 3, "floors are capped");
+    assert.strictEqual(pb.placed, "Vispo", "junk names are dropped");
+    assert.strictEqual(pb.treadmill, 1);
+
+    await a.leave(true);
+    await sleep(50);
+    const c = await colyseus.connectTo(room, { userId: "guest-c", username: "Cy" });
+    await sleep(50);
+    assert.strictEqual(room.state.players.get(c.sessionId)!.plot, 0, "a freed plot goes to the next player");
+  });
+
   it("relays pose, bike, trail and the Bloxity skin, bounded", async () => {
     const room = await colyseus.createRoom<WorldState>("world", {});
     const look = JSON.stringify({ equipped: { hatId: "3" }, skin: null });

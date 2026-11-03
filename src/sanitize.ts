@@ -1,5 +1,5 @@
 import {
-  CURRENCY_MAX, INCOME_MAX, TREADMILL_LEVEL_MAX, PLAY_SECONDS_MAX, BIKES_MAX, PLACED_MAX, FOUND_MAX, FUSE_MAX,
+  BASE_FLOORS_MAX, CURRENCY_MAX, INCOME_MAX, TREADMILL_LEVEL_MAX, PLAY_SECONDS_MAX, BIKES_MAX, PLACED_MAX, FOUND_MAX, FUSE_MAX,
   DAILY_CLAIMED_MAX, ID_PATTERN, BIKE_NAME_PATTERN, OWNED_TRAILS_MAX,
 } from "./constants.js";
 import type { PlayerDoc } from "./db.js";
@@ -44,6 +44,7 @@ export function sanitizeProgress(raw: unknown): Partial<PlayerDoc> | null {
   if (finite(raw.speed)) out.speed = clampNum(raw.speed, CURRENCY_MAX);
   if (finite(raw.income)) out.income = clampNum(raw.income, INCOME_MAX);
   if (finite(raw.treadmill)) out.treadmill = clampInt(raw.treadmill, TREADMILL_LEVEL_MAX, 1);
+  if (finite(raw.floors)) out.floors = clampInt(raw.floors, BASE_FLOORS_MAX, 1);
   if (finite(raw.playtime)) out.playtime = clampInt(raw.playtime, PLAY_SECONDS_MAX);
   if (finite(raw.lastSeen)) out.lastSeen = clampInt(raw.lastSeen, Date.now() + 10 * 60 * 1000);
 

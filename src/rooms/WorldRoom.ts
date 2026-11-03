@@ -1,9 +1,9 @@
 import { Room, Client, CloseCode } from "colyseus";
 import { WorldState, PlayerState } from "./schema/WorldState.js";
-import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
+import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, PLOT_COUNT, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
-import { applyAvatar, applyEmote, applyLoadout, applyPose } from "../presence.js";
+import { applyAvatar, applyBase, applyEmote, applyLoadout, applyPose } from "../presence.js";
 import { ranksOf, topBoards } from "../leaderboard.js";
 import { accountFor } from "../auth.js";
 import { queueScores } from "../platformBoards.js";
@@ -96,6 +96,11 @@ export class WorldRoom extends Room<{ state: WorldState }> {
       const p = this.state.players.get(client.sessionId);
       if (p) applyAvatar(p, msg);
     },
+    // What stands on the sender's plot (floors, parked bikes, treadmill level), for everyone to draw.
+    base: (client: Client, msg: unknown) => {
+      const p = this.state.players.get(client.sessionId);
+      if (p) applyBase(p, msg);
+    },
     // Boxity only tells the player who picked an emote, so the others hear it here.
     emote: (client: Client, msg: unknown) => {
       const p = this.state.players.get(client.sessionId);
@@ -160,8 +165,19 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     return { userId: await accountFor(typeof w?.userId === "string" ? w.userId : "", w?.token) };
   }
 
-  async onJoin(client: Client, options?: Who & { pose?: unknown; loadout?: unknown; avatar?: string }) {
+  // The lowest plot nobody in this room holds (-1 when all are taken: maxClients prevents that).
+  private freePlot(): number {
+    const taken = new Set<number>();
+    this.state.players.forEach((p) => taken.add(p.plot));
+    for (let i = 0; i < PLOT_COUNT; i++) if (!taken.has(i)) return i;
+    return -1;
+  }
+
+  async onJoin(client: Client, options?: Who & { pose?: unknown; loadout?: unknown; avatar?: string; base?: unknown }) {
     const p = new PlayerState();
+    // Their own base in the hub: kept through a reconnect, freed when they really leave.
+    p.plot = this.freePlot();
+    applyBase(p, options?.base);
     p.username = sanitizeName(options?.username);
     p.pfp = sanitizePfp(options?.pfp);
     // Presence from the join options, so the others draw the newcomer right away.

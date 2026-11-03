@@ -1,4 +1,4 @@
-import { AVATAR_MAX_LEN, BIKE_NAME_PATTERN, EMOTE_PATTERN, ID_PATTERN, POSE_BOUNDS } from "./constants.js";
+import { AVATAR_MAX_LEN, BASE_FLOORS_MAX, BIKE_NAME_PATTERN, EMOTE_PATTERN, ID_PATTERN, PLACED_MAX, POSE_BOUNDS, TREADMILL_LEVEL_MAX } from "./constants.js";
 import type { PlayerState } from "./rooms/schema/WorldState.js";
 
 // Presence: what the other clients need to draw a player in the world (client remotePlayers.js).
@@ -41,4 +41,14 @@ export function applyAvatar(p: PlayerState, msg: unknown): void {
 export function applyEmote(p: PlayerState, msg: unknown): void {
   const e = (msg as { emote?: unknown })?.emote;
   if (typeof e === "string" && EMOTE_PATTERN.test(e)) p.emote = e;
+}
+
+// `base` { floors, placed: [names], treadmill }: what stands on the sender's plot, drawn by everyone
+// (client plots.js). Bike names are checked like a save's; the list is stored "|"-joined.
+export function applyBase(p: PlayerState, msg: unknown): void {
+  if (!msg || typeof msg !== "object") return;
+  const m = msg as Record<string, unknown>;
+  if (finite(m.floors)) p.floors = clamp(Math.floor(m.floors), 1, BASE_FLOORS_MAX);
+  if (finite(m.treadmill)) p.treadmill = clamp(Math.floor(m.treadmill), 1, Math.min(255, TREADMILL_LEVEL_MAX));
+  if (Array.isArray(m.placed)) p.placed = m.placed.filter((n): n is string => typeof n === "string" && BIKE_NAME_PATTERN.test(n)).slice(0, PLACED_MAX).join("|");
 }

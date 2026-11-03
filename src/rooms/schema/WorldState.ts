@@ -16,6 +16,12 @@ export const PlayerState = schema(
     state: t.uint8().default(0), // 0 on foot, 1 on a bike, 2 walking a bike
     trail: t.string().default(""), // equipped trail id, "" = none
     bike: t.string().default(""), // bike being ridden / held, "" = the starter bicycle
+    // The base (presence.ts applyBase): which plot of the hub is theirs (the server assigns it on
+    // join, -1 = none) and what stands on it, so everyone draws everyone's base.
+    plot: t.int8().default(-1),
+    floors: t.uint8().default(1), // 1..BASE_FLOORS_MAX
+    placed: t.string().default(""), // bike names parked in the base, slot order, joined by "|"
+    treadmill: t.uint8().default(1), // treadmill level
     uid: t.string().default(""), // the checked account id, "" for a guest: Bloxity chat messages name their sender by it
     emote: t.string().default(""), // "<emote id>#<n>": the last Bloxity emote started
     avatar: t.string().default(""), // Bloxity look JSON { equipped, proportions, skin }, "" = default
