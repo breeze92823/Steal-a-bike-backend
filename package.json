@@ -1,8 +1,8 @@
 {
   "private": true,
-  "name": "bowling-roll-server",
+  "name": "steal-a-bike-server",
   "version": "0.1.0",
-  "description": "Colyseus server for Bowling Roll: progress saving and the room roster",
+  "description": "Colyseus server for Steal a Bike: progress saving, the hub roster and the Most Cash board",
   "type": "module",
   "main": "build/index.js",
   "engines": {

@@ -4,23 +4,20 @@ import { schema, t, type SchemaType } from "@colyseus/schema";
 // To sync something new about a player, add a field here and accept it in a WorldRoom message.
 export const PlayerState = schema(
   {
-    username: t.string().default(""), // client-reported Bloxity displayName/username, not validated
-    signedIn: t.boolean().default(false), // has a Bloxity id: only signed-in players are saved
-    pfp: t.string().default(""), // Bloxity profile picture URL ("" = none), for the others' racer heads
-    racing: t.boolean().default(false), // in a race right now (`race` message)
-    distance: t.float64().default(0), // this race's distance so far, studs
+    username: t.string().default(""), // Bloxity displayName/username
+    signedIn: t.boolean().default(false), // verified Bloxity id: only signed-in players are saved
+    pfp: t.string().default(""), // Bloxity profile picture URL ("" = none)
     // Presence (presence.ts, `pose` / `loadout` / `setAvatar`): what the others draw in the world.
-    x: t.float64().default(0), // feet position in track coordinates (z minus the race scroll)
+    x: t.float64().default(0), // feet position, metres
     y: t.float64().default(0),
     z: t.float64().default(0),
-    yaw: t.float32().default(0), // heading, rad (PI = facing the gate)
-    speed: t.float32().default(0), // m/s, for flames and dead reckoning
-    boat: t.string().default(""), // equipped catalog ids (client config.js), "" = none / default
-    engine: t.string().default(""),
-    trail: t.string().default(""),
-    partner: t.string().default(""),
-    pets: t.string().default(""), // equipped pets "kind:tier,kind:tier"
-    world: t.string().default(""), // the world the player is in (client WORLDS id), "" = the start world
+    yaw: t.float32().default(0), // heading, rad
+    speed: t.float32().default(0), // m/s, for dead reckoning and the animation
+    state: t.uint8().default(0), // 0 on foot, 1 on a bike, 2 walking a bike
+    trail: t.string().default(""), // equipped trail id, "" = none
+    bike: t.string().default(""), // bike being ridden / held, "" = the starter bicycle
+    uid: t.string().default(""), // the checked account id, "" for a guest: Bloxity chat messages name their sender by it
+    emote: t.string().default(""), // "<emote id>#<n>": the last Bloxity emote started
     avatar: t.string().default(""), // Bloxity look JSON { equipped, proportions, skin }, "" = default
   },
   "PlayerState",
