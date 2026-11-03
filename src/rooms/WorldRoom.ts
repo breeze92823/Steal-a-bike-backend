@@ -1,6 +1,7 @@
 import { Room, Client, CloseCode } from "colyseus";
 import { WorldState, PlayerState } from "./schema/WorldState.js";
-import { GIFT_COOLDOWN_MS, GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, PLOT_COUNT, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
+import { offlineEarnings } from "../offline.js";
+import { CURRENCY_MAX, GIFT_COOLDOWN_MS, GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, PLOT_COUNT, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
 import { applyAvatar, applyBase, applyEmote, applyLoadout, applyPose } from "../presence.js";
@@ -74,7 +75,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
           { _id: userId },
           {
             // Display name comes from this connection's own PlayerState, not `msg`.
-            $set: { ...patch, username: p.username || "Player", earnSeconds: clock.seconds, updatedAt: new Date() },
+            $set: { ...patch, username: p.username || "Player", earnSeconds: clock.seconds, lastSeen: Date.now(), updatedAt: new Date() },
             $setOnInsert: { version: 1 },
           },
           { upsert: true },
@@ -313,10 +314,26 @@ export class WorldRoom extends Room<{ state: WorldState }> {
 
     this.loaded.add(client.sessionId);
     const now = Date.now();
+    // Pay what the base earned while they were away, and stamp lastSeen now so a crash (no
+    // leave stamp) can't pay the same stretch twice.
+    const away = doc && players ? offlineEarnings(doc, now) : null;
+    if (doc && players && away) {
+      doc.cash = Math.min((doc.cash ?? 0) + away.cash, CURRENCY_MAX);
+      doc.earnSeconds = (doc.earnSeconds ?? 0) + away.seconds; // keeps the plausibility ceiling above the grant
+      doc.lastSeen = now;
+      try {
+        await players.updateOne({ _id: userId }, { $set: { cash: doc.cash, earnSeconds: doc.earnSeconds, lastSeen: now } });
+      } catch (err) {
+        console.warn("[WorldRoom] offline grant failed", err);
+        client.send("serverError", {});
+        return;
+      }
+      if (this.state.players.get(client.sessionId) !== p) return;
+    }
     this.clocks.set(client.sessionId, { seconds: doc?.earnSeconds ?? 0, at: now });
     this.giftReady.set(client.sessionId, (doc?.giftAt ?? 0) + GIFT_COOLDOWN_MS);
     if (!doc) client.send("noProgress", { serverTime: now });
-    else client.send("progress", { ...(sanitizeProgress(doc) ?? {}), gems: doc.gems ?? 0, giftReadyAt: (doc.giftAt ?? 0) + GIFT_COOLDOWN_MS, serverTime: now });
+    else client.send("progress", { ...(sanitizeProgress(doc) ?? {}), gems: doc.gems ?? 0, giftReadyAt: (doc.giftAt ?? 0) + GIFT_COOLDOWN_MS, serverTime: now, ...(away ? { offline: away } : {}) });
     void this.sendLeaderboard(client);
   }
 }

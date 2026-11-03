@@ -58,6 +58,13 @@ export const SPEED_FLOOR = 1e6;
 export const SPEED_PER_SEC = 2e4;
 export const SAVE_GAP_MAX_S = 120; // a save counts for at most this much play time since the last
 
+// Offline earnings (offline.ts; client config.js BASE.offlineHours / offlineShare): on join the
+// server pays income x the time since `lastSeen` (server clock), at most OFFLINE_MAX_S, nothing
+// under OFFLINE_MIN_S.
+export const OFFLINE_MAX_S = 12 * 3600;
+export const OFFLINE_MIN_S = 60;
+export const OFFLINE_SHARE = 1;
+
 // Bloxity's own boards (platformBoards.ts; the client's LEADERBOARDS in config.js declares the
 // same ones): how often scores are reported and the most in one call. Most Cash first: the portal
 // opens on it.
