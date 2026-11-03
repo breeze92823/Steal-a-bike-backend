@@ -82,7 +82,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.GAME_ID }}-server:${{ steps.channel.outputs.channel }}-${{ github.sha }}
 
       # roomSize = players per room (WorldRoom's maxClients, ROOM_MAX_CLIENTS in src/constants.ts);
-      # seatCap = the same number: pods fill to the room cap, then another spawns (hosting docs).
+      # No seatCap: the SDK docs say never to send it (the matchmaker sizes pods from roomSize).
       - name: Deploy to Legion
         run: |
           ROOM_SIZE=$(grep -oP 'ROOM_MAX_CLIENTS\s*=\s*\K\d+' src/constants.ts)
@@ -93,7 +93,7 @@ jobs:
           curl -sSf -X POST "https://legion.bloxity.io/v1/apps/${GAME_ID}/deploy" \
             -H "Authorization: Bearer ${LEGION_DEPLOY_TOKEN}" \
             -H 'Content-Type: application/json' \
-            -d "{\"channel\":\"${CHANNEL}\",\"image\":\"${REGISTRY}/${OWNER}/${GAME_ID}-server:${CHANNEL}-${{ github.sha }}\",\"version\":\"${{ github.sha }}\",\"roomSize\":${ROOM_SIZE},\"seatCap\":${ROOM_SIZE}}"
+            -d "{\"channel\":\"${CHANNEL}\",\"image\":\"${REGISTRY}/${OWNER}/${GAME_ID}-server:${CHANNEL}-${{ github.sha }}\",\"version\":\"${{ github.sha }}\",\"roomSize\":${ROOM_SIZE}}"
         env:
           LEGION_DEPLOY_TOKEN: ${{ secrets.LEGION_DEPLOY_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
