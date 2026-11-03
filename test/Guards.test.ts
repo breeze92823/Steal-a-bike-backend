@@ -90,6 +90,40 @@ describe("platform boards", () => {
   });
 });
 
+describe("free gift (rewarded ad)", () => {
+  let colyseus: ColyseusTestServer<typeof appConfig>;
+  const realFetch = globalThis.fetch;
+  before(async () => (colyseus = await testServer()));
+  beforeEach(async () => await colyseus.cleanup());
+  afterEach(() => (globalThis.fetch = realFetch));
+
+  it("pays out only for a token Bloxity vouches for, then waits the cooldown", async () => {
+    const asked: any[] = [];
+    globalThis.fetch = (async (url: string, init: any) => {
+      const body = JSON.parse(init.body);
+      asked.push({ url, body });
+      return { ok: true, json: async () => ({ valid: body.rewardToken === "good" }) };
+    }) as any;
+    const room = await colyseus.createRoom<WorldState>("world", {});
+    const c = await colyseus.connectTo(room, { userId: "guest-g", username: "G" });
+    const answers: any[] = [];
+    c.onMessage("adReward", (m: any) => answers.push(m));
+    c.onMessage("noProgress", () => {});
+    c.onMessage("leaderboard", () => {});
+    await sleep(50);
+    c.send("adReward", { rewardToken: "forged" });
+    await sleep(50);
+    c.send("adReward", { rewardToken: "good" });
+    await sleep(50);
+    c.send("adReward", { rewardToken: "good" });
+    await sleep(50);
+    assert.deepStrictEqual(answers.map((a) => [a.ok, a.reason]), [[false, "invalid"], [true, undefined], [false, "cooldown"]]);
+    assert.ok(asked[0].url.endsWith("/v1/ads/reward/verify"));
+    assert.deepStrictEqual(asked[0].body, { gameSlug: "steal-a-bike", rewardToken: "forged" });
+    assert.strictEqual(asked.length, 2, "a cooldown answer never asks Bloxity");
+  });
+});
+
 describe("gems webhook", () => {
   afterEach(() => {
     __setPlayersForTest(null);

@@ -73,6 +73,11 @@ export const PLATFORM_BOARDS = [
 // carries them.
 export const GEM_PACKS: Record<string, number> = { gems_100: 100, gems_500: 500, gems_1200: 1200 };
 
+// The FREE GIFT! chest (adReward.ts; client GIFT in config.js): a rewarded ad's token is checked with
+// Bloxity before the client pays out, at most once per GIFT_COOLDOWN_MS per account (server clock).
+export const AD_TOKEN_MAX_LEN = 4096;
+export const GIFT_COOLDOWN_MS = 5 * 60 * 1000;
+
 // `emote` (presence.ts): a Bloxity emote id plus a number that makes a repeat of it a change.
 export const EMOTE_PATTERN = /^[A-Za-z0-9_-]{1,64}#[0-9]{1,3}$/;
 

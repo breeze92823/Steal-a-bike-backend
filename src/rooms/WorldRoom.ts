@@ -1,6 +1,6 @@
 import { Room, Client, CloseCode } from "colyseus";
 import { WorldState, PlayerState } from "./schema/WorldState.js";
-import { GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, PLOT_COUNT, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
+import { GIFT_COOLDOWN_MS, GUEST_ID_PREFIX, LEADERBOARD_EVERY_MS, PLOT_COUNT, NAME_MAX, PFP_MAX_LEN, RECONNECT_SECONDS, ROOM_MAX_CLIENTS } from "../constants.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 import { sanitizeProgress } from "../sanitize.js";
 import { applyAvatar, applyBase, applyEmote, applyLoadout, applyPose } from "../presence.js";
@@ -9,6 +9,7 @@ import { accountFor } from "../auth.js";
 import { queueScores } from "../platformBoards.js";
 import { plausible, tick, type EarnClock } from "../plausible.js";
 import { grants } from "../gems.js";
+import { verifyAdReward } from "../adReward.js";
 
 function sanitizeName(raw: unknown): string {
   return typeof raw === "string" ? raw.slice(0, NAME_MAX) : "";
@@ -48,6 +49,8 @@ export class WorldRoom extends Room<{ state: WorldState }> {
   private loaded = new Set<string>();
   // sessionId -> the server's own count of this account's play seconds (plausible.ts), set with the load.
   private clocks = new Map<string, EarnClock>();
+  // sessionId -> epoch ms the FREE GIFT! may next be paid out (read from the doc's `giftAt` on load).
+  private giftReady = new Map<string, number>();
 
   messages = {
     // Debounced push of the client's whole progress. Upserts, so a first save creates the document.
@@ -95,6 +98,29 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     setAvatar: (client: Client, msg: unknown) => {
       const p = this.state.players.get(client.sessionId);
       if (p) applyAvatar(p, msg);
+    },
+    // FREE GIFT!: the client watched a rewarded ad (Bloxity `ads.showRewarded`) and sends its token.
+    // Bloxity says whether it is real (once, this game, within 5 min); the answer `adReward`
+    // { ok, reason?: "cooldown" | "invalid", readyAt } is the only thing that lets the client pay out.
+    adReward: async (client: Client, msg: { rewardToken?: unknown }) => {
+      const now = Date.now();
+      const readyAt = this.giftReady.get(client.sessionId) ?? 0;
+      if (now < readyAt) return client.send("adReward", { ok: false, reason: "cooldown", readyAt, serverTime: now });
+      const ok = await verifyAdReward(msg?.rewardToken);
+      if (!this.state.players.has(client.sessionId)) return;
+      if (!ok) return client.send("adReward", { ok: false, reason: "invalid", readyAt, serverTime: now });
+      const next = now + GIFT_COOLDOWN_MS;
+      this.giftReady.set(client.sessionId, next);
+      client.send("adReward", { ok: true, readyAt: next, serverTime: now });
+      const userId = this.userIds.get(client.sessionId);
+      const players = getPlayers();
+      if (userId && players) {
+        try {
+          await players.updateOne({ _id: userId }, { $set: { giftAt: now } });
+        } catch (err) {
+          console.warn("[WorldRoom] giftAt save failed", err);
+        }
+      }
     },
     // What stands on the sender's plot (floors, parked bikes, treadmill level), for everyone to draw.
     base: (client: Client, msg: unknown) => {
@@ -225,6 +251,7 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.identified.delete(sessionId);
     this.loaded.delete(sessionId);
     this.clocks.delete(sessionId);
+    this.giftReady.delete(sessionId);
   }
 
   // Called from both onJoin and `identify` with an already-resolved id (guest ids are dropped,
@@ -287,8 +314,9 @@ export class WorldRoom extends Room<{ state: WorldState }> {
     this.loaded.add(client.sessionId);
     const now = Date.now();
     this.clocks.set(client.sessionId, { seconds: doc?.earnSeconds ?? 0, at: now });
+    this.giftReady.set(client.sessionId, (doc?.giftAt ?? 0) + GIFT_COOLDOWN_MS);
     if (!doc) client.send("noProgress", { serverTime: now });
-    else client.send("progress", { ...(sanitizeProgress(doc) ?? {}), gems: doc.gems ?? 0, serverTime: now });
+    else client.send("progress", { ...(sanitizeProgress(doc) ?? {}), gems: doc.gems ?? 0, giftReadyAt: (doc.giftAt ?? 0) + GIFT_COOLDOWN_MS, serverTime: now });
     void this.sendLeaderboard(client);
   }
 }

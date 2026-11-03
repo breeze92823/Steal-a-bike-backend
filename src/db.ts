@@ -13,6 +13,7 @@ export interface PlayerDoc {
   username?: string; // display name as of the last save
   cash?: number; // the HUD's cash (the Most Cash board ranks it)
   gems?: number; // server-owned: only the Gems webhook (gems.ts) adds to it
+  giftAt?: number; // epoch ms of the last FREE GIFT! paid out (server-written)
   earnSeconds?: number; // play time the server has seen (plausible.ts), server-written
   speed?: number; // the bike counter trained on the treadmill
   income?: number; // $/s: treadmill + every bike in the base
